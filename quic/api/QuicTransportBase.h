@@ -16,6 +16,7 @@
 #include <quic/common/FunctionLooper.h>
 #include <quic/common/Timers.h>
 #include <quic/congestion_control/CongestionControllerFactory.h>
+#include <quic/congestion_control/CCP.h>
 #include <quic/congestion_control/Copa.h>
 #include <quic/congestion_control/NewReno.h>
 #include <quic/congestion_control/QuicCubic.h>

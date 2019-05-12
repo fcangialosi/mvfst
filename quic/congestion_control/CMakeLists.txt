@@ -7,6 +7,7 @@ add_library(
   mvfst_cc_algo STATIC
   CongestionControlFunctions.cpp
   CongestionControllerFactory.cpp
+  CCP.cpp
   Copa.cpp
   NewReno.cpp
   QuicCubic.cpp
@@ -32,6 +33,7 @@ add_dependencies(
   mvfst_exception
   mvfst_state_machine
   mvfst_state_functions
+  libccp
 )
 
 target_link_libraries(
@@ -42,6 +44,7 @@ target_link_libraries(
   mvfst_exception
   mvfst_state_machine
   mvfst_state_functions
+  libccp
 )
 
 file(
@@ -61,4 +64,5 @@ install(
   DESTINATION lib
 )
 
+add_subdirectory(libccp)
 add_subdirectory(test)

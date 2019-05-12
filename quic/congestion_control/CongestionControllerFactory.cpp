@@ -11,6 +11,7 @@
 #include <quic/congestion_control/Copa.h>
 #include <quic/congestion_control/NewReno.h>
 #include <quic/congestion_control/QuicCubic.h>
+#include <quic/congestion_control/CCP.h>
 
 #include <memory>
 
@@ -29,6 +30,9 @@ DefaultCongestionControllerFactory::makeCongestionController(
       break;
     case CongestionControlType::Copa:
       congestionController = std::make_unique<Copa>(conn);
+      break;
+    case CongestionControlType::CCP:
+      congestionController = std::make_unique<CCP>(conn);
       break;
     case CongestionControlType::BBR:
       throw std::runtime_error("Unsupported Congestion Control Algorithm");
