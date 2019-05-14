@@ -6,7 +6,85 @@ namespace quic {
 
 CCP::CCP(QuicConnectionStateBase& conn)
     : conn_(conn) {
-        ccp_test();
+
+    struct ccp_datapath dp = {
+/**
+        &_ccp_set_cwnd, //&(CCP::_ccpSetCwnd),
+        &_ccp_set_rate_abs,
+		&_ccp_send_msg,
+        &_ccp_send_msg,
+        &now_usecs,
+        &time_since_usecs,
+        &time_after_usecs,
+        NULL
+**/
+        set_cwnd : &_ccp_set_cwnd, //&(CCP::_ccpSetCwnd),
+        set_rate_abs : &_ccp_set_rate_abs,
+        send_msg : &_ccp_send_msg,
+		log : &_ccp_log, 
+		time_zero : 0 ,
+        now : &now_usecs,
+        since_usecs : &time_since_usecs,
+        after_usecs : &time_after_usecs,
+		state : NULL,
+        impl : NULL
+    };
+
+    if (ccp_init(&dp) < 0) {
+        printf("error! failed to initialize ccp connection map\n");
+    }
+}
+
+
+extern "C" {
+
+    static void _ccp_set_cwnd(struct ccp_datapath *dp, struct ccp_connection *conn, uint32_t cwnd) {
+		CCP *alg = (CCP *) ccp_get_impl(conn);
+		alg->setCongestionWindow(cwnd);
+    }
+
+
+    static void _ccp_set_rate_abs(struct ccp_datapath *dp, struct ccp_connection *conn, uint32_t rate) {
+		CCP *alg = (CCP *) ccp_get_impl(conn);
+		alg->setCongestionWindow(rate);
+    }
+
+    static int _ccp_send_msg(struct ccp_datapath *dp, struct ccp_connection *conn, char *msg, int msg_size) {
+		return 0;
+	}
+
+	static void _ccp_log(struct ccp_datapath *dp, enum ccp_log_level level, const char *msg, int msg_size) {
+	}
+
+	uint64_t init_time_ns = 0;
+	uint32_t last_print = 0;
+
+	uint64_t now_usecs() {
+		struct timespec now;
+		uint64_t now_ns, now_us;
+
+		clock_gettime(CLOCK_MONOTONIC, &now);
+
+		now_ns = (1000000000L * now.tv_sec) + now.tv_nsec;
+		if (init_time_ns == 0) {
+			init_time_ns = now_ns;
+		}
+
+		now_us = ((now_ns - init_time_ns) / 1000) & 0xffffffff;
+		return now_us;
+	}
+
+	uint64_t time_since_usecs(uint64_t then) {
+		return now_usecs() - then;
+	}
+
+	uint64_t time_after_usecs(uint64_t usecs) {
+		return now_usecs() + usecs;
+	}
+}
+
+void CCP::setCongestionWindow(unsigned int newCwnd) {
+    cwndBytes_ = newCwnd; 
 }
 
 void CCP::onRemoveBytesFromInflight(uint64_t bytes) {
