@@ -1,0 +1,1 @@
+(cd _build/build/ && make -j5); cd ~/mvfst
