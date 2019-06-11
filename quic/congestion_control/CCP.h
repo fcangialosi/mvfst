@@ -44,12 +44,14 @@ class CCP : public CongestionController {
   //void _ccpSetCwnd(struct ccp_datapath *dp, struct ccp_connection *conn, unsigned int newCwnd);
   void setCongestionWindow(unsigned int newCwnd);
  private:
-  void onPacketAcked(const AckEvent&);
-  void onPacketLoss(const LossEvent&);
-  QuicConnectionStateBase& conn_;
+  QuicConnectionStateBase& quic_conn_;
+  struct ccp_connection *ccp_conn_;
   uint64_t bytesInFlight_{0};
   uint64_t cwndBytes_;
   uint64_t ssthresh_;
+
+  void onPacketAcked(const AckEvent&);
+  void onPacketLoss(const LossEvent&);
 };
 
 extern "C" {

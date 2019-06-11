@@ -1,23 +1,28 @@
 
+#include <cstring>
 #include <quic/congestion_control/CCP.h>
 #include <quic/congestion_control/CongestionControlFunctions.h>
 
 namespace quic {
 
 CCP::CCP(QuicConnectionStateBase& conn)
-    : conn_(conn) {
+    : quic_conn_(conn) {
 
+    // TODO fill this out correctly
+    struct ccp_datapath_info info = {
+        init_cwnd  : 0,
+        mss        : 0,
+        src_ip     : 0,
+        src_port   : 0,
+        dst_ip     : 0, // quic_conn_.peerAddress.getIPAddress() .getPort()
+        dst_port   : 0
+    };
+    strncpy(info.congAlg, "reno", 4);
+    ccp_conn_ = ccp_connection_start((void *) this, &info);
+
+    // TODO find the right place for this global initialization:
+        /*
     struct ccp_datapath dp = {
-/**
-        &_ccp_set_cwnd, //&(CCP::_ccpSetCwnd),
-        &_ccp_set_rate_abs,
-		&_ccp_send_msg,
-        &_ccp_send_msg,
-        &now_usecs,
-        &time_since_usecs,
-        &time_after_usecs,
-        NULL
-**/
         set_cwnd : &_ccp_set_cwnd, //&(CCP::_ccpSetCwnd),
         set_rate_abs : &_ccp_set_rate_abs,
         send_msg : &_ccp_send_msg,
@@ -33,6 +38,7 @@ CCP::CCP(QuicConnectionStateBase& conn)
     if (ccp_init(&dp) < 0) {
         printf("error! failed to initialize ccp connection map\n");
     }
+    */
 }
 
 
@@ -91,7 +97,7 @@ void CCP::onRemoveBytesFromInflight(uint64_t bytes) {
   subtractAndCheckUnderflow(bytesInFlight_, bytes);
   VLOG(10) << __func__ << " writable=" << getWritableBytes()
            << " cwnd=" << cwndBytes_ << " inflight=" << bytesInFlight_ << " "
-           << conn_;
+           << quic_conn_;
 }
 
 void CCP::onPacketSent(const OutstandingPacket& packet) {
@@ -102,7 +108,7 @@ void CCP::onPacketSent(const OutstandingPacket& packet) {
            << folly::variant_match(
                   packet.packet.header,
                   [](auto& h) { return h.getPacketSequenceNum(); })
-           << " " << conn_;
+           << " " << quic_conn_;
 }
 
 void CCP::onPacketAcked(const AckEvent& ack) {
@@ -110,7 +116,7 @@ void CCP::onPacketAcked(const AckEvent& ack) {
   subtractAndCheckUnderflow(bytesInFlight_, ack.ackedBytes);
   VLOG(10) << __func__ << " writable=" << getWritableBytes()
            << " cwnd=" << cwndBytes_ << " inflight=" << bytesInFlight_ << " "
-           << conn_;
+           << quic_conn_;
 
   /*
   if (*ack.largestAckedPacket < endOfRecovery_) {
@@ -121,7 +127,7 @@ void CCP::onPacketAcked(const AckEvent& ack) {
     addAndCheckOverflow(cwndBytes_, ack.ackedBytes);
   } else {
     // TODO: I think this may be a bug in the specs. We should use
-    // conn_.udpSendPacketLen for the cwnd calculation. But I need to
+    // quic_conn_.udpSendPacketLen for the cwnd calculation. But I need to
     // check how Linux handles this.
     uint64_t additionFactor =
         (kDefaultUDPSendPacketLen * ack.ackedBytes) / cwndBytes_;
@@ -129,9 +135,9 @@ void CCP::onPacketAcked(const AckEvent& ack) {
   }
   cwndBytes_ = boundedCwnd(
       cwndBytes_,
-      conn_.udpSendPacketLen,
-      conn_.transportSettings.maxCwndInMss,
-      conn_.transportSettings.minCwndInMss);
+      quic_conn_.udpSendPacketLen,
+      quic_conn_.transportSettings.maxCwndInMss,
+      quic_conn_.transportSettings.minCwndInMss);
 }
 
 void CCP::onPacketAckOrLoss(
@@ -150,31 +156,31 @@ void CCP::onPacketLoss(const LossEvent& loss) {
   subtractAndCheckUnderflow(bytesInFlight_, loss.lostBytes);
   /*
   if (endOfRecovery_ < *loss.largestLostPacketNum) {
-    endOfRecovery_ = conn_.lossState.largestSent;
+    endOfRecovery_ = quic_conn_.lossState.largestSent;
 
     cwndBytes_ = (cwndBytes_ >> kRenoLossReductionFactorShift);
     cwndBytes_ = boundedCwnd(
         cwndBytes_,
-        conn_.udpSendPacketLen,
-        conn_.transportSettings.maxCwndInMss,
-        conn_.transportSettings.minCwndInMss);
+        quic_conn_.udpSendPacketLen,
+        quic_conn_.transportSettings.maxCwndInMss,
+        quic_conn_.transportSettings.minCwndInMss);
     // This causes us to exit slow start.
     ssthresh_ = cwndBytes_;
     VLOG(10) << __func__ << " exit slow start, ssthresh=" << ssthresh_
              << " packetNum=" << *loss.largestLostPacketNum
              << " writable=" << getWritableBytes() << " cwnd=" << cwndBytes_
-             << " inflight=" << bytesInFlight_ << " " << conn_;
+             << " inflight=" << bytesInFlight_ << " " << quic_conn_;
   } else {
     VLOG(10) << __func__ << " packetNum=" << *loss.largestLostPacketNum
              << " writable=" << getWritableBytes() << " cwnd=" << cwndBytes_
-             << " inflight=" << bytesInFlight_ << " " << conn_;
+             << " inflight=" << bytesInFlight_ << " " << quic_conn_;
   }
   */
   if (loss.persistentCongestion) {
     VLOG(10) << __func__ << " writable=" << getWritableBytes()
              << " cwnd=" << cwndBytes_ << " inflight=" << bytesInFlight_ << " "
-             << conn_;
-    cwndBytes_ = conn_.transportSettings.minCwndInMss * conn_.udpSendPacketLen;
+             << quic_conn_;
+    cwndBytes_ = quic_conn_.transportSettings.minCwndInMss * quic_conn_.udpSendPacketLen;
   }
 }
 
@@ -211,7 +217,7 @@ uint64_t CCP::getBytesInFlight() const noexcept {
 
 uint64_t CCP::getPacingRate(TimePoint /* currentTime */) noexcept {
   // Pacing is not supported on CCP currently
-  return conn_.transportSettings.writeConnectionDataPacketsLimit;
+  return quic_conn_.transportSettings.writeConnectionDataPacketsLimit;
 }
 
 void CCP::markPacerTimeoutScheduled(TimePoint /* currentTime */) noexcept {
