@@ -44,22 +44,22 @@ CCP::CCP(QuicConnectionStateBase& conn)
 
 extern "C" {
 
-    static void _ccp_set_cwnd(struct ccp_datapath *dp, struct ccp_connection *conn, uint32_t cwnd) {
+    void _ccp_set_cwnd(struct ccp_datapath *dp, struct ccp_connection *conn, uint32_t cwnd) {
 		CCP *alg = (CCP *) ccp_get_impl(conn);
 		alg->setCongestionWindow(cwnd);
     }
 
 
-    static void _ccp_set_rate_abs(struct ccp_datapath *dp, struct ccp_connection *conn, uint32_t rate) {
+    void _ccp_set_rate_abs(struct ccp_datapath *dp, struct ccp_connection *conn, uint32_t rate) {
 		CCP *alg = (CCP *) ccp_get_impl(conn);
 		alg->setCongestionWindow(rate);
     }
 
-    static int _ccp_send_msg(struct ccp_datapath *dp, struct ccp_connection *conn, char *msg, int msg_size) {
+    int _ccp_send_msg(struct ccp_datapath *dp, struct ccp_connection *conn, char *msg, int msg_size) {
 		return 0;
 	}
 
-	static void _ccp_log(struct ccp_datapath *dp, enum ccp_log_level level, const char *msg, int msg_size) {
+	void _ccp_log(struct ccp_datapath *dp, enum ccp_log_level level, const char *msg, int msg_size) {
 	}
 
 	uint64_t init_time_ns = 0;
@@ -231,8 +231,10 @@ std::chrono::microseconds CCP::getPacingInterval() const noexcept {
 
 void CCP::setMinimalPacingInterval(std::chrono::microseconds) noexcept {}
 
-void CCP::setAppLimited(bool, TimePoint) noexcept { /* unsupported */
+void CCP::setAppLimited() { /* unsupported */
 }
+
+void CCP::setAppIdle(bool, TimePoint) noexcept {}
 
 bool CCP::isAppLimited() const noexcept {
   return false; // unsupported
